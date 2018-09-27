@@ -1,0 +1,78 @@
+clone_depth: 50
+
+environment:
+  global:
+    APPVEYOR_SAVE_CACHE_ON_ERROR: true
+    CLCACHE_HARDLINK: 1
+    APPVEYOR_CACHE_ENTRY_ZIP_ARGS: "-t7z -m0=lzma2 -mx=3 -md=32m -ms=on"
+    CLCACHE_CACHESIZE: 2123123123  # Appveyor allows us to store 1Gb of 7zipped cache but
+                                   # object files compress ratio is 20:1 in our case
+
+  matrix:
+    - { APPVEYOR_BUILD_WORKER_IMAGE: 'Visual Studio 2017', ADDRMDL: 64, TOOLSET: 'msvc-14.1' }
+
+cache:
+  - '%USERPROFILE%\clcache'
+  - '%LOCALAPPDATA%\pip\Cache'
+
+init:
+  - echo init
+
+  - set B2_ARGS=-j%NUMBER_OF_PROCESSORS% link=shared threading=multi
+                variant=release address-model=%ADDRMDL% toolset=%TOOLSET%
+                define=BOOST_ALL_NO_LIB
+
+before_build:
+  - echo before_build
+
+  - set PATH=C:\Python36-x64\Scripts;%PATH%
+
+  # Install clcache
+  - pip install git+https://github.com/frerich/clcache.git
+  - clcache -M %CLCACHE_CACHESIZE%
+  - clcache -s  # print statistics
+  # Run clcache-server
+  - set CLCACHE_SERVER=1
+  - ps: $ClcacheServerProcess = Start-Process clcache-server.exe -PassThru
+
+build_script:
+  - echo build_script
+
+after_build:
+  - echo after_build
+
+before_package:
+  - echo before_package
+
+before_test:
+  - echo before_test
+
+test_script:
+  - echo test_script
+
+  - clcache -c  # trim cache
+
+after_test:
+  - echo after_test
+
+  - clcache -s  # print clcache statistics
+  - ps: Stop-Process -Id $ClcacheServerProcess.Id
+  - ps: Wait-Process -Id $ClcacheServerProcess.Id -Timeout 60
+
+before_deploy:
+  - echo before_deploy
+
+after_deploy:
+  - echo after_deploy
+
+deploy_script:
+  - echo deploy_script
+
+on_success:
+  - echo on_success
+
+on_failure:
+  - echo on_failure
+
+on_finish:
+  - echo on_finish
